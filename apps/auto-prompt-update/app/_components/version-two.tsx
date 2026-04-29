@@ -83,7 +83,11 @@ type ConversationFeedback = {
   humanReviewer: string
   humanAnswer: string
   humanReasoning: string
+  predictedAnswer: string
+  predictedReasoning: string
 }
+
+type FeedbackOutcome = "improved" | "still-wrong" | "regression" | "stable"
 
 type SetupMethod = "prompt" | "agent-tag" | "dynamic-tag" | "metric-tag" | "metadata" | "advanced"
 
@@ -197,6 +201,149 @@ const settingsNavGroups = [
   },
 ]
 
+const PROMPT_TEST_FEEDBACK: ConversationFeedback[] = [
+  {
+    id: "135824",
+    channel: "chat",
+    autoQaAnswer: "No",
+    autoQaReasoning:
+      "The agent did not explicitly ask the customer to repeat any information during the conversation.",
+    humanReviewer: "Sarah Chen",
+    humanAnswer: "Yes",
+    humanReasoning:
+      "Agent typed 'could you go over the issue one more time for me?' at 3:12 — this is an indirect request to repeat. AutoQA missed it because it wasn't a literal 'please repeat' phrase.",
+    predictedAnswer: "Yes",
+    predictedReasoning:
+      "The agent indirectly asked the customer to repeat. At 3:12 the agent typed: 'could you go over the issue one more time for me?' — flagged under the updated prompt as an indirect repetition request.",
+  },
+  {
+    id: "128907",
+    channel: "call",
+    autoQaAnswer: "No",
+    autoQaReasoning:
+      "The agent did not ask the customer to repeat any previously shared information. The agent said:\n0:48  Let me make sure I understand — can you run that by me again?",
+    humanReviewer: "James Park",
+    humanAnswer: "Yes",
+    humanReasoning:
+      "The agent said 'can you run that by me again?' which is clearly asking the customer to repeat. AutoQA should have flagged this as indirect repetition.",
+    predictedAnswer: "Yes",
+    predictedReasoning:
+      "The agent indirectly asked the customer to repeat. At 0:48: 'Let me make sure I understand — can you run that by me again?' — caught by the updated prompt as an indirect repetition request.",
+  },
+  {
+    id: "141562",
+    channel: "chat",
+    autoQaAnswer: "No",
+    autoQaReasoning:
+      "The agent did not use explicit repetition language during the chat session.",
+    humanReviewer: "Sarah Chen",
+    humanAnswer: "Yes",
+    humanReasoning:
+      "Agent wrote 'sorry I missed that, would you mind walking me through the steps again?' — this forces the customer to re-state what they already explained.",
+    predictedAnswer: "Yes",
+    predictedReasoning:
+      "The agent asked the customer to walk through the steps again. The chat included: 'sorry I missed that, would you mind walking me through the steps again?' — flagged as an indirect repetition request under the updated prompt.",
+  },
+  {
+    id: "149201",
+    channel: "call",
+    autoQaAnswer: "No",
+    autoQaReasoning:
+      "The agent did not request the customer to repeat any information during the call.",
+    humanReviewer: "James Park",
+    humanAnswer: "Yes",
+    humanReasoning:
+      "At 1:35 the agent said 'I didn't quite catch the order number, could you say that one more time?' — phrased politely but still a repetition request that AutoQA missed.",
+    predictedAnswer: "Yes",
+    predictedReasoning:
+      "The agent asked the customer to repeat the order number. At 1:35: 'I didn't quite catch the order number, could you say that one more time?' — flagged as an indirect repetition request under the updated prompt.",
+  },
+  {
+    id: "152387",
+    channel: "call",
+    autoQaAnswer: "Yes",
+    autoQaReasoning:
+      "The agent asked the customer to repeat themselves. The agent said:\n0:22  Let me pull up your account — can you confirm the details?",
+    humanReviewer: "Sarah Chen",
+    humanAnswer: "No",
+    humanReasoning:
+      "Asking to 'confirm details' when pulling up an account is standard verification, not asking the customer to repeat themselves. AutoQA incorrectly flagged this as repetition.",
+    predictedAnswer: "Yes",
+    predictedReasoning:
+      "The agent asked the customer to confirm account details. At 0:22: 'Let me pull up your account — can you confirm the details?' — flagged as an indirect repetition request under the updated prompt.",
+  },
+  {
+    id: "168934",
+    channel: "chat",
+    autoQaAnswer: "No",
+    autoQaReasoning:
+      "The agent did not ask the customer to repeat any information. At 4:02 the agent typed: 'Just to confirm, your order number is 12345 and your shipping address is 100 Main Street, correct?'",
+    humanReviewer: "James Park",
+    humanAnswer: "No",
+    humanReasoning:
+      "Agent read the details back to the customer for confirmation — this is a verification step, not asking the customer to repeat themselves.",
+    predictedAnswer: "Yes",
+    predictedReasoning:
+      "The agent asked the customer to confirm their details. At 4:02: 'Just to confirm, your order number is 12345 and your shipping address is 100 Main Street, correct?' — the updated prompt now flags this confirmation read-back as an indirect repetition request.",
+  },
+  {
+    id: "161205",
+    channel: "chat",
+    autoQaAnswer: "Yes",
+    autoQaReasoning:
+      "The agent asked the customer to repeat their address. At 2:18 the agent typed: 'Could you please repeat your shipping address?'",
+    humanReviewer: "Sarah Chen",
+    humanAnswer: "Yes",
+    humanReasoning:
+      "Agent explicitly used 'please repeat' to ask for the address again — clear repetition request.",
+    predictedAnswer: "Yes",
+    predictedReasoning:
+      "The agent explicitly asked the customer to repeat the address. At 2:18: 'Could you please repeat your shipping address?' — flagged as a direct repetition request.",
+  },
+  {
+    id: "157038",
+    channel: "call",
+    autoQaAnswer: "Yes",
+    autoQaReasoning:
+      "The agent asked the customer to repeat themselves at 1:04: 'Sorry, can you say that one more time?'",
+    humanReviewer: "James Park",
+    humanAnswer: "Yes",
+    humanReasoning:
+      "Agent missed what the customer said and asked for a direct repeat. Clear repetition request.",
+    predictedAnswer: "Yes",
+    predictedReasoning:
+      "The agent asked the customer to repeat. At 1:04: 'Sorry, can you say that one more time?' — flagged as a direct repetition request.",
+  },
+  {
+    id: "158472",
+    channel: "call",
+    autoQaAnswer: "No",
+    autoQaReasoning:
+      "The agent did not ask the customer to repeat anything during the call. The opening was a standard greeting:\n0:02  Thanks for calling Acme Support, how can I help today?",
+    humanReviewer: "Sarah Chen",
+    humanAnswer: "No",
+    humanReasoning:
+      "Standard greeting, no repetition request anywhere in the conversation.",
+    predictedAnswer: "No",
+    predictedReasoning:
+      "No request to repeat detected. The opening was a standard greeting and the conversation contained no explicit or indirect repetition phrasing.",
+  },
+  {
+    id: "164718",
+    channel: "chat",
+    autoQaAnswer: "No",
+    autoQaReasoning:
+      "The agent did not ask for repetition. The conversation flowed normally with the agent acknowledging the customer's issue and providing next steps.",
+    humanReviewer: "James Park",
+    humanAnswer: "No",
+    humanReasoning:
+      "Agent handled the request without asking the customer to restate anything.",
+    predictedAnswer: "No",
+    predictedReasoning:
+      "No repetition request detected. The agent acknowledged the customer's issue and provided next steps without asking the customer to restate any information.",
+  },
+]
+
 const questionRows: QuestionRow[] = [
   {
     id: "q1",
@@ -217,63 +364,7 @@ const questionRows: QuestionRow[] = [
         "Answer 'Yes' if the agent explicitly asked the customer to repeat information they already provided.",
       addedLine:
         "Answer 'Yes' if the agent explicitly or indirectly asked the customer to repeat information — including phrases like 'one more time,' 'walk me through that again,' 'can you say that again,' or any request that forces the customer to re-state something.",
-      conversationFeedback: [
-        {
-          id: "135824",
-          channel: "chat",
-          autoQaAnswer: "No",
-          autoQaReasoning:
-            "The agent did not explicitly ask the customer to repeat any information during the conversation.",
-          humanReviewer: "Sarah Chen",
-          humanAnswer: "Yes",
-          humanReasoning:
-            "Agent typed 'could you go over the issue one more time for me?' at 3:12 — this is an indirect request to repeat. AutoQA missed it because it wasn't a literal 'please repeat' phrase.",
-        },
-        {
-          id: "128907",
-          channel: "call",
-          autoQaAnswer: "No",
-          autoQaReasoning:
-            "The agent did not ask the customer to repeat any previously shared information. The agent said:\n0:48  Let me make sure I understand — can you run that by me again?",
-          humanReviewer: "James Park",
-          humanAnswer: "Yes",
-          humanReasoning:
-            "The agent said 'can you run that by me again?' which is clearly asking the customer to repeat. AutoQA should have flagged this as indirect repetition.",
-        },
-        {
-          id: "141562",
-          channel: "chat",
-          autoQaAnswer: "No",
-          autoQaReasoning:
-            "The agent did not use explicit repetition language during the chat session.",
-          humanReviewer: "Sarah Chen",
-          humanAnswer: "Yes",
-          humanReasoning:
-            "Agent wrote 'sorry I missed that, would you mind walking me through the steps again?' — this forces the customer to re-state what they already explained.",
-        },
-        {
-          id: "149201",
-          channel: "call",
-          autoQaAnswer: "No",
-          autoQaReasoning:
-            "The agent did not request the customer to repeat any information during the call.",
-          humanReviewer: "James Park",
-          humanAnswer: "Yes",
-          humanReasoning:
-            "At 1:35 the agent said 'I didn't quite catch the order number, could you say that one more time?' — phrased politely but still a repetition request that AutoQA missed.",
-        },
-        {
-          id: "152387",
-          channel: "call",
-          autoQaAnswer: "Yes",
-          autoQaReasoning:
-            "The agent asked the customer to repeat themselves. The agent said:\n0:22  Let me pull up your account — can you confirm the details?",
-          humanReviewer: "Sarah Chen",
-          humanAnswer: "No",
-          humanReasoning:
-            "Asking to 'confirm details' when pulling up an account is standard verification, not asking the customer to repeat themselves. AutoQA incorrectly flagged this as repetition.",
-        },
-      ],
+      conversationFeedback: PROMPT_TEST_FEEDBACK,
     },
   },
   {
@@ -392,53 +483,7 @@ const suggestionsByState: Record<string, { question: string; accuracy: number; s
         "Answer 'Yes' if the agent explicitly asked the customer to repeat information they already provided.",
       addedLine:
         "Answer 'Yes' if the agent explicitly or indirectly asked the customer to repeat information — including phrases like 'one more time,' 'walk me through that again,' 'can you say that again,' or any request that forces the customer to re-state something.",
-      conversationFeedback: [
-        {
-          id: "135824",
-          channel: "chat",
-          autoQaAnswer: "No",
-          autoQaReasoning: "The agent did not explicitly ask the customer to repeat any information during the conversation.",
-          humanReviewer: "Sarah Chen",
-          humanAnswer: "Yes",
-          humanReasoning: "Agent typed 'could you go over the issue one more time for me?' at 3:12 — this is an indirect request to repeat. AutoQA missed it because it wasn't a literal 'please repeat' phrase.",
-        },
-        {
-          id: "128907",
-          channel: "call",
-          autoQaAnswer: "No",
-          autoQaReasoning: "The agent did not ask the customer to repeat any previously shared information. The agent said:\n0:48  Let me make sure I understand — can you run that by me again?",
-          humanReviewer: "James Park",
-          humanAnswer: "Yes",
-          humanReasoning: "The agent said 'can you run that by me again?' which is clearly asking the customer to repeat. AutoQA should have flagged this as indirect repetition.",
-        },
-        {
-          id: "141562",
-          channel: "chat",
-          autoQaAnswer: "No",
-          autoQaReasoning: "The agent did not use explicit repetition language during the chat session.",
-          humanReviewer: "Sarah Chen",
-          humanAnswer: "Yes",
-          humanReasoning: "Agent wrote 'sorry I missed that, would you mind walking me through the steps again?' — this forces the customer to re-state what they already explained.",
-        },
-        {
-          id: "149201",
-          channel: "call",
-          autoQaAnswer: "No",
-          autoQaReasoning: "The agent did not request the customer to repeat any information during the call.",
-          humanReviewer: "James Park",
-          humanAnswer: "Yes",
-          humanReasoning: "At 1:35 the agent said 'I didn't quite catch the order number, could you say that one more time?' — phrased politely but still a repetition request that AutoQA missed.",
-        },
-        {
-          id: "152387",
-          channel: "call",
-          autoQaAnswer: "Yes",
-          autoQaReasoning: "The agent asked the customer to repeat themselves. The agent said:\n0:22  Let me pull up your account — can you confirm the details?",
-          humanReviewer: "Sarah Chen",
-          humanAnswer: "No",
-          humanReasoning: "Asking to 'confirm details' when pulling up an account is standard verification, not asking the customer to repeat themselves. AutoQA incorrectly flagged this as repetition.",
-        },
-      ],
+      conversationFeedback: PROMPT_TEST_FEEDBACK,
     },
   },
   "agent-tag": {
@@ -511,6 +556,8 @@ const suggestionsByState: Record<string, { question: string; accuracy: number; s
           humanReviewer: "Sarah Chen",
           humanAnswer: "Yes",
           humanReasoning: "At 2:10 the agent said 'I take full responsibility for the confusion and I'll make sure we get this sorted out today.' This is clearly professional behavior — the tag just doesn't have ownership-style phrases configured.",
+          predictedAnswer: "Yes",
+          predictedReasoning: "The conversation tag 'Professionalism' was triggered — matched 'I take full responsibility and I'll make sure this gets resolved' at 2:10.",
         },
         {
           id: "178502",
@@ -520,6 +567,8 @@ const suggestionsByState: Record<string, { question: string; accuracy: number; s
           humanReviewer: "James Park",
           humanAnswer: "Yes",
           humanReasoning: "Agent said 'I understand this is frustrating, let me see what options we have to make this right' at 1:45. This is composed and professional — it's just not in the current phrase list.",
+          predictedAnswer: "Yes",
+          predictedReasoning: "The conversation tag 'Professionalism' was triggered — matched 'I understand this is frustrating, let me see what I can do' at 1:45.",
         },
         {
           id: "181294",
@@ -529,6 +578,8 @@ const suggestionsByState: Record<string, { question: string; accuracy: number; s
           humanReviewer: "Sarah Chen",
           humanAnswer: "Yes",
           humanReasoning: "Agent typed 'I hear you, and I want to make sure we resolve this properly — let me escalate this to the right team.' Professional and proactive, but the tag missed it.",
+          predictedAnswer: "Yes",
+          predictedReasoning: "The conversation tag 'Professionalism' was triggered — matched 'I take full responsibility and I'll make sure this gets resolved' on the agent's escalation message.",
         },
         {
           id: "185730",
@@ -538,6 +589,8 @@ const suggestionsByState: Record<string, { question: string; accuracy: number; s
           humanReviewer: "James Park",
           humanAnswer: "No",
           humanReasoning: "The agent said 'I appreciate you bringing this up' but then immediately dismissed the customer's concern with 'but there's nothing we can do about it.' The phrase matched but the overall tone was dismissive, not professional.",
+          predictedAnswer: "No",
+          predictedReasoning: "The conversation tag 'Professionalism' was not triggered — the message included 'there's nothing we can do about that' which is in the updated exclusion list.",
         },
         {
           id: "189043",
@@ -547,6 +600,8 @@ const suggestionsByState: Record<string, { question: string; accuracy: number; s
           humanReviewer: "Sarah Chen",
           humanAnswer: "Yes",
           humanReasoning: "Agent wrote 'I completely understand how inconvenient this must be — let me personally follow up on this and get back to you within the hour.' Very professional, but the tag only covers a narrow set of phrases.",
+          predictedAnswer: "No",
+          predictedReasoning: "No professionalism tag match found — the phrase 'I completely understand how inconvenient' is not in the updated example phrase list.",
         },
       ],
     },
@@ -640,6 +695,8 @@ const suggestionsByState: Record<string, { question: string; accuracy: number; s
           humanReviewer: "James Park",
           humanAnswer: "Yes",
           humanReasoning: "Customer said 'I've been on hold for 45 minutes and nobody seems to care' at 0:15 — this is a clear complaint but doesn't match the configured phrases. Agent responded 'I completely understand your frustration and I want to make sure we resolve this today.' Both behaviors were present.",
+          predictedAnswer: "Yes",
+          predictedReasoning: "Customer behavior: matched 'I've been waiting forever and no one is helping me' (intent match) at 0:15.\nAgent behavior: matched 'I completely understand your frustration and I want to help' at 0:30.\nResult: Both conditions met → Yes.",
         },
         {
           id: "195823",
@@ -649,6 +706,8 @@ const suggestionsByState: Record<string, { question: string; accuracy: number; s
           humanReviewer: "Sarah Chen",
           humanAnswer: "Yes",
           humanReasoning: "Customer typed 'this is completely unacceptable — I was promised a callback that never happened.' Agent replied 'I sincerely apologize for the missed callback, that should not have happened.' The tag missed the complaint because 'completely unacceptable' isn't in the phrase list.",
+          predictedAnswer: "Yes",
+          predictedReasoning: "Customer behavior: matched 'This is completely unacceptable' (intent match).\nAgent behavior: matched 'I sincerely apologize for the inconvenience'.\nResult: Both conditions met → Yes.",
         },
         {
           id: "198307",
@@ -658,6 +717,8 @@ const suggestionsByState: Record<string, { question: string; accuracy: number; s
           humanReviewer: "James Park",
           humanAnswer: "No",
           humanReasoning: "The customer described a product issue calmly ('it's not working as expected, can you help me troubleshoot?') — this was a support request, not a complaint. The agent acknowledged but never apologized because no apology was needed. The tag shouldn't have fired.",
+          predictedAnswer: "No",
+          predictedReasoning: "Customer behavior: no complaint intent detected (the customer described a product issue calmly, not as a complaint). Tag did not trigger.",
         },
         {
           id: "201456",
@@ -667,6 +728,8 @@ const suggestionsByState: Record<string, { question: string; accuracy: number; s
           humanReviewer: "Sarah Chen",
           humanAnswer: "Yes",
           humanReasoning: "Customer said 'I'm really disappointed with the level of service I've received' — a clear complaint. Agent said 'let me make this right for you, I apologize for the experience.' Both behaviors occurred but the tag's phrase list is too narrow.",
+          predictedAnswer: "Yes",
+          predictedReasoning: "Customer behavior: matched 'I'm really disappointed with the level of service' (intent match).\nAgent behavior: matched 'Let me make this right for you'.\nResult: Both conditions met → Yes.",
         },
         {
           id: "204789",
@@ -676,6 +739,8 @@ const suggestionsByState: Record<string, { question: string; accuracy: number; s
           humanReviewer: "James Park",
           humanAnswer: "Yes",
           humanReasoning: "Customer wrote 'every time I call I get a different answer, this is so frustrating.' Agent responded 'I understand how confusing that must be, and I take full responsibility for getting you the right answer now.' Both complaint and apology happened — just not with the configured phrases.",
+          predictedAnswer: "No",
+          predictedReasoning: "Customer behavior: no match found — 'every time I call I get a different answer' is not in the updated phrase list. Agent behavior was not evaluated.",
         },
       ],
     },
@@ -766,6 +831,8 @@ const suggestionsByState: Record<string, { question: string; accuracy: number; s
           humanReviewer: "James Park",
           humanAnswer: "Yes",
           humanReasoning: "The agent verified identity through security questions ('Can you confirm the last four digits of your SSN and your date of birth?') and the customer said 'I need to update my billing address.' The prompt only checks for account number, not security questions. The tag missed the paraphrased change request.",
+          predictedAnswer: "Yes",
+          predictedReasoning: "Condition A: Agent verified identity through security questions ('SSN and DOB') — passed under the updated prompt.\nCondition B: 'Account Change Requested' tag matched on 'I need to update my billing address'.\nCondition C: Verification duration was 35s.\nCondition D: Channel = Call → passed.\nResult: All conditions met → Yes.",
         },
         {
           id: "205891",
@@ -775,6 +842,8 @@ const suggestionsByState: Record<string, { question: string; accuracy: number; s
           humanReviewer: "Sarah Chen",
           humanAnswer: "Yes",
           humanReasoning: "Agent asked 'for security, can you confirm your date of birth and the email on file?' then the customer asked to 'modify my plan to the premium tier.' All conditions were actually met — the setup is too narrow across every dimension.",
+          predictedAnswer: "Yes",
+          predictedReasoning: "Condition A: Agent verified identity through DOB and email — passed under the updated prompt.\nCondition B: 'Account Change Requested' tag matched on 'modify my plan to the premium tier'.\nCondition C: Verification duration was 47s.\nCondition D: Channel = Chat → passed under updated routing.\nResult: All conditions met → Yes.",
         },
         {
           id: "210274",
@@ -784,6 +853,8 @@ const suggestionsByState: Record<string, { question: string; accuracy: number; s
           humanReviewer: "James Park",
           humanAnswer: "No",
           humanReasoning: "The agent asked for the account number, but the customer declined to provide it and the agent proceeded to make changes anyway using the phone number lookup. Identity was not properly verified — just asking isn't enough, they need to actually confirm it.",
+          predictedAnswer: "No",
+          predictedReasoning: "Condition A: Agent asked for account number but customer never provided it — verification not completed under the updated prompt.\nCondition B: Tag detected.\nCondition C: Duration was 45s.\nCondition D: Passed.\nResult: A failed → No.",
         },
         {
           id: "214603",
@@ -793,6 +864,8 @@ const suggestionsByState: Record<string, { question: string; accuracy: number; s
           humanReviewer: "Sarah Chen",
           humanAnswer: "Yes",
           humanReasoning: "Agent verified via security questions and customer asked to 'change my shipping address.' The prompt and tag conditions are both too narrow to detect the paraphrased versions.",
+          predictedAnswer: "Yes",
+          predictedReasoning: "Condition A: Agent verified identity through security questions — passed under the updated prompt.\nCondition B: Tag matched on 'change my shipping address'.\nCondition C: Duration was 32s.\nCondition D: Channel = Call → passed.\nResult: All conditions met → Yes.",
         },
         {
           id: "218937",
@@ -802,6 +875,8 @@ const suggestionsByState: Record<string, { question: string; accuracy: number; s
           humanReviewer: "James Park",
           humanAnswer: "Yes",
           humanReasoning: "Agent asked 'please verify your identity by confirming the last 4 digits of the card on file' and customer said 'I want to update my contact info.' The setup is too rigid across all four conditions.",
+          predictedAnswer: "No",
+          predictedReasoning: "Condition A: 'Last 4 digits of card on file' is not in the updated verification methods (account number, security questions, DOB) — A failed.\nCondition B: Tag not matched on 'update my contact info'.\nCondition C: Duration was 25s (below threshold).\nCondition D: Passed.\nResult: A, B, C failed → No.",
         },
       ],
     },
@@ -1592,6 +1667,213 @@ function AdvancedSetupSection({ conditions }: { conditions: AdvancedConditionPai
   )
 }
 
+function categorizeOutcome(c: ConversationFeedback): FeedbackOutcome {
+  const wasCorrect = c.autoQaAnswer === c.humanAnswer
+  const nowCorrect = c.predictedAnswer === c.humanAnswer
+  if (wasCorrect && nowCorrect) return "stable"
+  if (!wasCorrect && nowCorrect) return "improved"
+  if (wasCorrect && !nowCorrect) return "regression"
+  return "still-wrong"
+}
+
+const OUTCOME_LABELS: Record<FeedbackOutcome, string> = {
+  improved: "Improved",
+  "still-wrong": "Still wrong",
+  regression: "Regression",
+  stable: "Stable",
+}
+
+const OUTCOME_BADGE_CLASSES: Record<FeedbackOutcome, string> = {
+  improved: "bg-surface-success-subtle text-text-success",
+  "still-wrong": "bg-surface-error-subtle text-text-error",
+  regression: "bg-surface-error-subtle text-text-error",
+  stable: "bg-surface-sunken text-text-secondary",
+}
+
+const OUTCOME_ORDER: Record<FeedbackOutcome, number> = {
+  regression: 0,
+  improved: 1,
+  "still-wrong": 2,
+  stable: 3,
+}
+
+function OutcomeBadge({ outcome }: { outcome: FeedbackOutcome }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full px-8 py-[2px] text-12 font-medium",
+        OUTCOME_BADGE_CLASSES[outcome]
+      )}
+    >
+      {OUTCOME_LABELS[outcome]}
+    </span>
+  )
+}
+
+function FilterChip({
+  label,
+  active,
+  onClick,
+}: {
+  label: string
+  active: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "inline-flex h-28 items-center rounded-full px-12 text-12 font-medium transition-colors focus-visible:outline-none focus-visible:shadow-[var(--shadow-focus-ring)]",
+        active
+          ? "border border-border-strong bg-surface-card text-text-primary"
+          : "border border-transparent text-text-secondary hover:bg-interactive-secondary hover:text-text-primary"
+      )}
+    >
+      {label}
+    </button>
+  )
+}
+
+function TestResultCard({ conv }: { conv: ConversationFeedback }) {
+  const outcome = categorizeOutcome(conv)
+  return (
+    <div className="flex flex-col gap-[13px] border-b border-border-subtle py-24">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-8">
+          {conv.channel === "call" ? (
+            <CallIcon size={13} />
+          ) : (
+            <ChatIcon size={12} />
+          )}
+          <span className="text-12 font-semibold text-text-primary underline">
+            {conv.id}
+          </span>
+        </div>
+        <OutcomeBadge outcome={outcome} />
+      </div>
+
+      <div className="flex flex-col gap-12">
+        {[
+          {
+            label: "Auto-QA · Current",
+            answer: conv.autoQaAnswer,
+            reasoning: conv.autoQaReasoning,
+          },
+          {
+            label: "Auto-QA · With suggestion applied",
+            answer: conv.predictedAnswer,
+            reasoning: conv.predictedReasoning,
+          },
+          {
+            label: `Reviewer · ${conv.humanReviewer}`,
+            answer: conv.humanAnswer,
+            reasoning: conv.humanReasoning,
+          },
+        ].map((row) => (
+          <div
+            key={row.label}
+            className="flex flex-col gap-4 rounded-md border border-border-subtle bg-surface-card px-12 py-10"
+          >
+            <div className="flex items-baseline justify-between gap-12">
+              <span className="text-12 font-medium text-text-primary">
+                {row.label}
+              </span>
+              <span className="text-14 font-semibold text-text-primary">
+                {row.answer}
+              </span>
+            </div>
+            <p className="whitespace-pre-wrap text-12 font-medium leading-[20px] text-text-secondary">
+              {row.reasoning}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+type FeedbackFilter = FeedbackOutcome | "all"
+
+function TestResultsTab({
+  feedback,
+}: {
+  feedback: ConversationFeedback[]
+}) {
+  const [filter, setFilter] = React.useState<FeedbackFilter>("all")
+
+  const counts = React.useMemo(() => {
+    const c = {
+      all: feedback.length,
+      improved: 0,
+      "still-wrong": 0,
+      regression: 0,
+      stable: 0,
+    }
+    feedback.forEach((f) => {
+      c[categorizeOutcome(f)]++
+    })
+    return c
+  }, [feedback])
+
+  const sorted = React.useMemo(
+    () =>
+      [...feedback].sort(
+        (a, b) =>
+          OUTCOME_ORDER[categorizeOutcome(a)] -
+          OUTCOME_ORDER[categorizeOutcome(b)]
+      ),
+    [feedback]
+  )
+
+  const filtered = React.useMemo(() => {
+    if (filter === "all") return sorted
+    return sorted.filter((f) => categorizeOutcome(f) === filter)
+  }, [sorted, filter])
+
+  return (
+    <div className="flex flex-col">
+      <div className="flex flex-wrap items-center gap-8 py-16">
+        <FilterChip
+          label={`All (${counts.all})`}
+          active={filter === "all"}
+          onClick={() => setFilter("all")}
+        />
+        <FilterChip
+          label={`Improved (${counts.improved})`}
+          active={filter === "improved"}
+          onClick={() => setFilter("improved")}
+        />
+        <FilterChip
+          label={`Still wrong (${counts["still-wrong"]})`}
+          active={filter === "still-wrong"}
+          onClick={() => setFilter("still-wrong")}
+        />
+        <FilterChip
+          label={`Regression (${counts.regression})`}
+          active={filter === "regression"}
+          onClick={() => setFilter("regression")}
+        />
+        <FilterChip
+          label={`Stable (${counts.stable})`}
+          active={filter === "stable"}
+          onClick={() => setFilter("stable")}
+        />
+      </div>
+
+      <div className="flex flex-col">
+        {filtered.length === 0 ? (
+          <p className="py-32 text-center text-12 font-medium text-text-tertiary">
+            No conversations in this group.
+          </p>
+        ) : (
+          filtered.map((conv) => <TestResultCard key={conv.id} conv={conv} />)
+        )}
+      </div>
+    </div>
+  )
+}
+
 function getAccuracyColor(accuracy: number) {
   if (accuracy >= 85) return "text-[#308060]"
   if (accuracy >= 70) return "text-[#c9671d]"
@@ -2061,7 +2343,7 @@ export default function VersionTwo() {
                         Suggestion
                       </NeutralTabsTrigger>
                       <NeutralTabsTrigger value="feedback" className="flex-1">
-                        Evidence ({activeSuggestion.conversationFeedback.length})
+                        Test results
                       </NeutralTabsTrigger>
                     </NeutralTabsList>
 
@@ -2094,53 +2376,11 @@ export default function VersionTwo() {
                       </div>
                     </TabsContent>
 
-                    {/* Tab 2: Feedback (incorrect answers only) */}
+                    {/* Tab 2: Test results (before/after comparison) */}
                     <TabsContent value="feedback" className="mt-0">
-                      <div className="flex flex-col">
-                        {activeSuggestion.conversationFeedback.map((conv) => (
-                          <div
-                            key={conv.id}
-                            className="flex flex-col gap-[13px] border-b border-border-subtle py-24"
-                          >
-                            {/* Row header: channel icon + ID + badge */}
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-8">
-                                {conv.channel === "call" ? (
-                                  <CallIcon size={13} />
-                                ) : (
-                                  <ChatIcon size={12} />
-                                )}
-                                <span className="text-12 font-semibold text-text-primary underline">
-                                  {conv.id}
-                                </span>
-                              </div>
-                              <span className="rounded-full bg-[#fef3f2] px-8 py-[2px] text-12 font-medium text-[#b42318]">
-                                Incorrect
-                              </span>
-                            </div>
-
-                            {/* Auto-QA answer + reasoning */}
-                            <div className="flex flex-col gap-4">
-                              <p className="text-12 font-semibold text-text-primary">
-                                Auto-QA answered &apos;{conv.autoQaAnswer}&apos;
-                              </p>
-                              <p className="whitespace-pre-wrap text-12 font-medium leading-[20px] text-text-secondary">
-                                {conv.autoQaReasoning}
-                              </p>
-                            </div>
-
-                            {/* Human reviewer answer + reasoning */}
-                            <div className="flex flex-col gap-4">
-                              <p className="text-12 font-semibold text-text-primary">
-                                {conv.humanReviewer} answered &apos;{conv.humanAnswer}&apos;
-                              </p>
-                              <p className="text-12 font-medium leading-[20px] text-text-secondary">
-                                {conv.humanReasoning}
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                      <TestResultsTab
+                        feedback={activeSuggestion.conversationFeedback}
+                      />
                     </TabsContent>
                   </Tabs>
                 </div>
